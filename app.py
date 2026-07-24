@@ -38,27 +38,19 @@ def fetch_gumus_fiyat():
 
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_phe_fiyat():
-    """TEFAS resmi API'sinden PHE fonunun son birim pay fiyatını çeker (TL).
-    (fintables da bu veriyi TEFAS'tan alıyor, JS ile render ettiği için direkt
-    fintables sayfasını scrape etmek güvenilir değil.)"""
+    """TEFAS'ın yeni (2026) resmi API'sinden PHE fonunun son birim pay fiyatını çeker (TL).
+    pytefas kütüphanesini kullanır (fintables de fiyatı JS ile render ettiği için
+    fintables sayfasını direkt scrape etmek yerine TEFAS'a gidiyoruz — asıl kaynak orası)."""
+    from pytefas import Crawler
+
+    tefas = Crawler(timeout=15)
     bugun = date.today()
     bas = bugun - timedelta(days=10)
-    url = "https://www.tefas.gov.tr/api/DB/BindHistoryInfo"
-    data = {
-        "fontip": "YAT",
-        "fonkod": "PHE",
-        "bastarih": bas.strftime("%d.%m.%Y"),
-        "bittarih": bugun.strftime("%d.%m.%Y"),
-    }
-    headers = {**UA, "Referer": "https://www.tefas.gov.tr/TarihselVeriler.aspx"}
-    r = requests.post(url, data=data, headers=headers, timeout=10)
-    r.raise_for_status()
-    payload = r.json()
-    rows = payload.get("data", [])
-    if not rows:
-        raise ValueError("TEFAS'tan PHE için veri dönmedi.")
-    son = sorted(rows, key=lambda x: x["TARIH"])[-1]
-    return float(son["FIYAT"])
+    df = tefas.fetch(bas.isoformat(), bugun.isoformat(), columns="info", fund_code="PHE")
+    if df.empty:
+        raise ValueError("TEFAS'tan PHE için veri dönmedi (tatil/hafta sonu olabilir).")
+    son = df.sort_values("date").iloc[-1]
+    return float(son["price"])
 
 
 # ---------- DB ----------

@@ -27,8 +27,10 @@ istersen o versiyonunu da yazarım.
 ## Fiyatlar nereden geliyor?
 
 - **Gram gümüş**: https://altin.doviz.com/gumus sayfası anlık olarak scrape ediliyor (5 dakika cache'li).
-- **PHE fon fiyatı**: TEFAS'ın resmi API'si (fintables da bu veriyi TEFAS'tan alıyor; fintables sayfası
-  fiyatı JS ile render ettiği için direkt oradan scrape etmek kırılgan olurdu, TEFAS daha sağlam).
+- **PHE fon fiyatı**: TEFAS'ın 2026'da yenilenen resmi API'si (`pytefas` kütüphanesi üzerinden). fintables de
+  zaten fiyatı TEFAS'tan alıyor; fintables sayfası veriyi JS ile render ettiği için direkt oradan scrape etmek
+  kırılgan olurdu, TEFAS'a gitmek daha sağlam. (Not: TEFAS eski endpoint'i 2026'da kapattı, bu yüzden ilk
+  versiyonda 404 hatası alınmıştı — artık güncel endpoint kullanılıyor.)
 - Bir siteler değişir/erişilemezse uygulama otomatik olarak o alan için **manuel giriş kutusu** gösterir,
   hiçbir şey kırılmaz.
 
