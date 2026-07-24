@@ -1,0 +1,16 @@
+{
+  "settings": {
+    "gumus_gram": 335,
+    "gumus_fiyat": 0,
+    "phe_adet": 0,
+    "phe_fiyat": 0,
+    "faiz_anapara": 45000,
+    "faiz_orani": 0,
+    "faiz_periyot": "Aylık",
+    "faiz_tip": "Bileşik",
+    "faiz_baslangic": "2026-07-24",
+    "taksit_sayisi": 5
+  },
+  "payments": [],
+  "next_id": 1
+}
