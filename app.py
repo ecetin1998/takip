@@ -102,7 +102,7 @@ with st.sidebar:
 
     st.subheader("🔔 Aylık Bildirim")
     st.caption(
-        "Ayın 5'inde Telegram + mail ile otomatik hatırlatma gönderilir "
+        "Ayın 5'inde Telegram ile otomatik hatırlatma gönderilir "
         "(GitHub Actions üzerinden — kurulum için README'ye bak)."
     )
 

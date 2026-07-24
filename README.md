@@ -45,9 +45,10 @@ Repo **Settings > Secrets and variables > Actions > New repository secret** üze
 |---|---|
 | `TELEGRAM_BOT_TOKEN` | Telegram'da [@BotFather](https://t.me/BotFather)'a `/newbot` yazarak alınır |
 | `TELEGRAM_CHAT_ID` | Botunla bir kere mesajlaşıp [@userinfobot](https://t.me/userinfobot)'tan kendi chat id'ni öğren |
-| `GMAIL_USER` | Bildirim gönderecek Gmail adresin |
-| `GMAIL_APP_PASSWORD` | Gmail 2FA açıp [App Passwords](https://myaccount.google.com/apppasswords) üzerinden oluşturduğun 16 haneli şifre (normal şifren değil) |
-| `NOTIFY_EMAIL` | (opsiyonel) Bildirimin gideceği adres, boş bırakırsan `GMAIL_USER`'a gider |
+
+(Mail bildirimi kaldırıldı, sadece Telegram var. İstersen ilerde `GMAIL_USER` + `GMAIL_APP_PASSWORD`
+secret'larını eklersin, `notify.py` mail kısmını otomatik ekler — kod zaten hazır, sadece secret eksik olduğu
+için atlıyor.)
 
 Kurulumdan sonra **Actions** sekmesinden `Aylık Borç Hatırlatma` workflow'unu seçip **Run workflow** ile
 elle bir kere test et — cron'u ayın 5'ine kadar beklemene gerek yok.

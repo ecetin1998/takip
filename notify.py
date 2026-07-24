@@ -72,8 +72,11 @@ def send_telegram(msg: str):
 
 
 def send_email(msg: str):
-    user = os.environ["GMAIL_USER"]
-    pw = os.environ["GMAIL_APP_PASSWORD"]
+    user = os.environ.get("GMAIL_USER")
+    pw = os.environ.get("GMAIL_APP_PASSWORD")
+    if not user or not pw:
+        return  # Gmail secrets tanımlı değil, mail atlanır
+
     to = os.environ.get("NOTIFY_EMAIL", user)
 
     m = MIMEText(msg)
@@ -99,7 +102,10 @@ if __name__ == "__main__":
 
     try:
         send_email(mesaj)
-        print("✅ Mail gönderildi.")
+        if os.environ.get("GMAIL_USER"):
+            print("✅ Mail gönderildi.")
+        else:
+            print("ℹ️ Mail atlandı (GMAIL_USER/GMAIL_APP_PASSWORD tanımlı değil).")
     except Exception as e:
         hatalar.append(f"Email: {e}")
 
