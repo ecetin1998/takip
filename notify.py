@@ -1,5 +1,6 @@
-"""GitHub Actions cron job'u tarafından çalıştırılır (ayın 5'i).
-data.json'daki güncel durumu okuyup Telegram + mail ile özet gönderir.
+"""GitHub Actions cron job'u tarafından her gün çalıştırılır.
+data.json'daki güncel durumu okuyup Telegram + (varsa) mail ile özet gönderir.
+Ayın 5'i olduğunda mesaja ayrıca "bugün ödeme günü" notu ekler.
 
 Gerekli GitHub Actions secrets (repo Settings > Secrets and variables > Actions):
     TELEGRAM_BOT_TOKEN
@@ -46,8 +47,12 @@ def build_message() -> str:
     kalan_ay = max(int(s["taksit_sayisi"]) - odeme_sayisi, 1)
     guncel_taksit = kalan / kalan_ay if kalan_ay else 0
 
+    odeme_gunu_notu = ""
+    if date.today().day == 5:
+        odeme_gunu_notu = "\n\n🔴 BUGÜN ÖDEME GÜNÜ! (ayın 5'i)"
+
     return (
-        "💰 Borç/Varlık Takip — Aylık Hatırlatma\n\n"
+        "💰 Borç/Varlık Takip — Günlük Durum\n\n"
         f"🪙 Gümüş: {gumus_deger:,.0f} TL\n"
         f"📈 PHE Fon: {phe_deger:,.0f} TL\n"
         f"🏦 Faiz Borcu: {faiz_borc:,.0f} TL\n"
@@ -57,6 +62,7 @@ def build_message() -> str:
         f"Kalan: {kalan:,.0f} TL\n\n"
         f"📅 Bu ayki taksit tutarın: {guncel_taksit:,.0f} TL\n"
         f"(kalan {kalan_ay} taksit / {s['taksit_sayisi']} toplam taksit)"
+        f"{odeme_gunu_notu}"
     )
 
 
