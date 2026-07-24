@@ -210,6 +210,17 @@ def add_payment(tarih, tutar, not_):
     conn.close()
 
 
+def update_payment(payment_id, tarih, tutar, not_):
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute(
+        "UPDATE payments SET tarih = ?, tutar = ?, not_ = ? WHERE id = ?",
+        (tarih.isoformat(), tutar, not_, payment_id),
+    )
+    conn.commit()
+    conn.close()
+
+
 def delete_payment(payment_id):
     conn = get_conn()
     c = conn.cursor()
@@ -355,13 +366,38 @@ with st.form("odeme_form", clear_on_submit=True):
 st.subheader("📜 Ödeme Geçmişi")
 rows = get_payments()
 if rows:
+    if "duzenlenen_id" not in st.session_state:
+        st.session_state.duzenlenen_id = None
+
     for pid, tarih_str, tutar_val, not_val in rows:
-        c1, c2, c3, c4 = st.columns([2, 2, 4, 1])
-        c1.write(tarih_str)
-        c2.write(f"{tutar_val:,.0f} TL")
-        c3.write(not_val or "—")
-        if c4.button("🗑️", key=f"del_{pid}"):
-            delete_payment(pid)
-            st.rerun()
+        if st.session_state.duzenlenen_id == pid:
+            with st.form(f"duzenle_form_{pid}"):
+                st.caption(f"Ödeme #{pid} düzenleniyor")
+                c1, c2 = st.columns(2)
+                yeni_tarih = c1.date_input("Tarih", value=date.fromisoformat(tarih_str), key=f"tarih_{pid}")
+                yeni_tutar = c2.number_input("Tutar (TL)", value=float(tutar_val), min_value=0.0, step=100.0, key=f"tutar_{pid}")
+                yeni_not = st.text_input("Not", value=not_val or "", key=f"not_{pid}")
+                bc1, bc2 = st.columns(2)
+                kaydet = bc1.form_submit_button("💾 Kaydet", use_container_width=True)
+                vazgec = bc2.form_submit_button("Vazgeç", use_container_width=True)
+                if kaydet:
+                    update_payment(pid, yeni_tarih, yeni_tutar, yeni_not)
+                    st.session_state.duzenlenen_id = None
+                    st.success("Güncellendi.")
+                    st.rerun()
+                if vazgec:
+                    st.session_state.duzenlenen_id = None
+                    st.rerun()
+        else:
+            c1, c2, c3, c4, c5 = st.columns([2, 2, 4, 1, 1])
+            c1.write(tarih_str)
+            c2.write(f"{tutar_val:,.0f} TL")
+            c3.write(not_val or "—")
+            if c4.button("✏️", key=f"edit_{pid}"):
+                st.session_state.duzenlenen_id = pid
+                st.rerun()
+            if c5.button("🗑️", key=f"del_{pid}"):
+                delete_payment(pid)
+                st.rerun()
 else:
     st.caption("Henüz ödeme girilmemiş.")
