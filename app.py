@@ -70,7 +70,11 @@ def init_db():
             gumus_fiyat REAL DEFAULT 0,
             phe_adet REAL DEFAULT 0,
             phe_fiyat REAL DEFAULT 0,
-            faiz_borc REAL DEFAULT 45000,
+            faiz_anapara REAL DEFAULT 45000,
+            faiz_orani REAL DEFAULT 0,
+            faiz_periyot TEXT DEFAULT 'Aylık',
+            faiz_tip TEXT DEFAULT 'Bileşik',
+            faiz_baslangic TEXT DEFAULT '',
             taksit_sayisi INTEGER DEFAULT 5
         )
         """
@@ -78,8 +82,10 @@ def init_db():
     c.execute("SELECT COUNT(*) FROM settings")
     if c.fetchone()[0] == 0:
         c.execute(
-            "INSERT INTO settings (id, gumus_gram, gumus_fiyat, phe_adet, phe_fiyat, faiz_borc, taksit_sayisi) "
-            "VALUES (1, 335, 0, 0, 0, 45000, 5)"
+            "INSERT INTO settings (id, gumus_gram, gumus_fiyat, phe_adet, phe_fiyat, "
+            "faiz_anapara, faiz_orani, faiz_periyot, faiz_tip, faiz_baslangic, taksit_sayisi) "
+            "VALUES (1, 335, 0, 0, 0, 45000, 0, 'Aylık', 'Bileşik', ?, 5)",
+            (date.today().isoformat(),),
         )
     conn.commit()
 
@@ -90,6 +96,25 @@ def init_db():
         c.execute("ALTER TABLE settings ADD COLUMN phe_adet REAL DEFAULT 0")
     if "phe_fiyat" not in cols:
         c.execute("ALTER TABLE settings ADD COLUMN phe_fiyat REAL DEFAULT 0")
+    if "faiz_anapara" not in cols:
+        # eski faiz_borc kolonu varsa değerini anaparaya taşı
+        eski_deger = 45000
+        if "faiz_borc" in cols:
+            c.execute("SELECT faiz_borc FROM settings WHERE id = 1")
+            row = c.fetchone()
+            if row and row[0] is not None:
+                eski_deger = row[0]
+        c.execute("ALTER TABLE settings ADD COLUMN faiz_anapara REAL DEFAULT 45000")
+        c.execute("UPDATE settings SET faiz_anapara = ? WHERE id = 1", (eski_deger,))
+    if "faiz_orani" not in cols:
+        c.execute("ALTER TABLE settings ADD COLUMN faiz_orani REAL DEFAULT 0")
+    if "faiz_periyot" not in cols:
+        c.execute("ALTER TABLE settings ADD COLUMN faiz_periyot TEXT DEFAULT 'Aylık'")
+    if "faiz_tip" not in cols:
+        c.execute("ALTER TABLE settings ADD COLUMN faiz_tip TEXT DEFAULT 'Bileşik'")
+    if "faiz_baslangic" not in cols:
+        c.execute("ALTER TABLE settings ADD COLUMN faiz_baslangic TEXT DEFAULT ''")
+        c.execute("UPDATE settings SET faiz_baslangic = ? WHERE id = 1 AND (faiz_baslangic IS NULL OR faiz_baslangic = '')", (date.today().isoformat(),))
     conn.commit()
 
     c.execute(
@@ -110,7 +135,11 @@ def init_db():
 def get_settings():
     conn = get_conn()
     c = conn.cursor()
-    c.execute("SELECT gumus_gram, gumus_fiyat, phe_adet, phe_fiyat, faiz_borc, taksit_sayisi FROM settings WHERE id = 1")
+    c.execute(
+        "SELECT gumus_gram, gumus_fiyat, phe_adet, phe_fiyat, "
+        "faiz_anapara, faiz_orani, faiz_periyot, faiz_tip, faiz_baslangic, taksit_sayisi "
+        "FROM settings WHERE id = 1"
+    )
     row = c.fetchone()
     conn.close()
     return {
@@ -118,24 +147,47 @@ def get_settings():
         "gumus_fiyat": row[1],
         "phe_adet": row[2],
         "phe_fiyat": row[3],
-        "faiz_borc": row[4],
-        "taksit_sayisi": row[5],
+        "faiz_anapara": row[4],
+        "faiz_orani": row[5],
+        "faiz_periyot": row[6] or "Aylık",
+        "faiz_tip": row[7] or "Bileşik",
+        "faiz_baslangic": row[8] or date.today().isoformat(),
+        "taksit_sayisi": row[9],
     }
 
 
-def update_settings(gumus_gram, gumus_fiyat, phe_adet, phe_fiyat, faiz_borc, taksit_sayisi):
+def update_settings(gumus_gram, gumus_fiyat, phe_adet, phe_fiyat,
+                     faiz_anapara, faiz_orani, faiz_periyot, faiz_tip, faiz_baslangic,
+                     taksit_sayisi):
     conn = get_conn()
     c = conn.cursor()
     c.execute(
         """
         UPDATE settings
-        SET gumus_gram = ?, gumus_fiyat = ?, phe_adet = ?, phe_fiyat = ?, faiz_borc = ?, taksit_sayisi = ?
+        SET gumus_gram = ?, gumus_fiyat = ?, phe_adet = ?, phe_fiyat = ?,
+            faiz_anapara = ?, faiz_orani = ?, faiz_periyot = ?, faiz_tip = ?, faiz_baslangic = ?,
+            taksit_sayisi = ?
         WHERE id = 1
         """,
-        (gumus_gram, gumus_fiyat, phe_adet, phe_fiyat, faiz_borc, taksit_sayisi),
+        (gumus_gram, gumus_fiyat, phe_adet, phe_fiyat,
+         faiz_anapara, faiz_orani, faiz_periyot, faiz_tip, faiz_baslangic,
+         taksit_sayisi),
     )
     conn.commit()
     conn.close()
+
+
+def hesapla_faiz_borcu(anapara, oran_yuzde, periyot, tip, baslangic_tarihi):
+    """Anaparanın başlangıç tarihinden bugüne kadar faizle büyümüş halini hesaplar."""
+    gecen_gun = max((date.today() - baslangic_tarihi).days, 0)
+    periyot_gun = 30.0 if periyot == "Aylık" else 365.0
+    donem_sayisi = gecen_gun / periyot_gun
+    oran = oran_yuzde / 100.0
+
+    if tip == "Bileşik":
+        return anapara * (1 + oran) ** donem_sayisi
+    else:
+        return anapara * (1 + oran * donem_sayisi)
 
 
 def get_payments():
@@ -221,13 +273,31 @@ with st.sidebar:
         st.caption(f"✅ Canlı: {phe_fiyat:,.6f} TL/pay (TEFAS)")
 
     st.subheader("Faiz Borcu")
-    faiz_borc = st.number_input("Faize atılan borç (TL)", value=float(s["faiz_borc"]), step=100.0)
+    faiz_anapara = st.number_input("Anapara (TL)", value=float(s["faiz_anapara"]), step=100.0)
+    faiz_baslangic = st.date_input(
+        "Borcun başlangıç tarihi", value=date.fromisoformat(s["faiz_baslangic"])
+    )
+    c1, c2 = st.columns(2)
+    faiz_periyot = c1.selectbox("Periyot", ["Aylık", "Yıllık"],
+                                 index=["Aylık", "Yıllık"].index(s["faiz_periyot"]))
+    faiz_tip = c2.selectbox("Tip", ["Bileşik", "Basit"],
+                             index=["Bileşik", "Basit"].index(s["faiz_tip"]))
+    faiz_orani = st.number_input(
+        f"{faiz_periyot} faiz oranı (%)", value=float(s["faiz_orani"]), step=0.1, format="%.2f"
+    )
+    faiz_borc = hesapla_faiz_borcu(faiz_anapara, faiz_orani, faiz_periyot, faiz_tip, faiz_baslangic)
+    gecen_gun = max((date.today() - faiz_baslangic).days, 0)
+    st.caption(f"📈 Güncel: {faiz_borc:,.2f} TL ({gecen_gun} gün geçti, +{faiz_borc - faiz_anapara:,.2f} TL faiz)")
 
     st.subheader("Ödeme Planı")
     taksit_sayisi = st.number_input("Toplam taksit sayısı (ay)", value=int(s["taksit_sayisi"]), step=1, min_value=1)
 
     if st.button("💾 Ayarları Kaydet", use_container_width=True):
-        update_settings(gumus_gram, gumus_fiyat, phe_adet, phe_fiyat, faiz_borc, int(taksit_sayisi))
+        update_settings(
+            gumus_gram, gumus_fiyat, phe_adet, phe_fiyat,
+            faiz_anapara, faiz_orani, faiz_periyot, faiz_tip, faiz_baslangic.isoformat(),
+            int(taksit_sayisi),
+        )
         st.success("Kaydedildi kanka.")
         st.rerun()
 
@@ -251,7 +321,7 @@ st.subheader("📊 Varlık Dağılımı")
 col1, col2, col3 = st.columns(3)
 col1.metric("🪙 Gümüş", f"{gumus_deger:,.0f} TL", help=f"{gumus_gram:g} gram x {gumus_fiyat:,.2f} TL")
 col2.metric("📈 PHE Fon", f"{phe_deger:,.0f} TL", help=f"{phe_adet:g} pay x {phe_fiyat:,.6f} TL")
-col3.metric("🏦 Faiz Borcu", f"{faiz_borc:,.0f} TL")
+col3.metric("🏦 Faiz Borcu", f"{faiz_borc:,.0f} TL", help=f"Anapara {faiz_anapara:,.0f} TL + işleyen faiz")
 
 st.divider()
 

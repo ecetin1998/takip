@@ -45,7 +45,17 @@ adet = 35000 / (o günkü PHE pay fiyatı)
 
 Bunu sol panelden bir kere gir, gerisi otomatik güncellenir.
 
+## Faiz Borcu
+
+Artık faiz borcu sabit değil, otomatik büyüyor:
+
+- **Anapara**, **başlangıç tarihi**, **oran** (aylık/yıllık %) ve **tip** (bileşik/basit) giriyorsun.
+- Uygulama her açılışta `bugün - başlangıç tarihi` gün farkını alıp faizi otomatik hesaplıyor.
+- Bileşik: `anapara x (1+oran)^dönem_sayısı` — Basit: `anapara x (1 + oran x dönem_sayısı)`.
+- Ödeme yaptıkça toplam kalan (gümüş + PHE + işleyen faiz borcu - ödenen) küçülüyor, güncel taksit ona göre yeniden hesaplanıyor.
+
 ## Kullanım
+
 
 - Sol panelde gümüş gram sayısı, PHE pay adedi, faiz borcu ve taksit sayısı ayarlanıyor — fiyatlar otomatik geliyor.
 - Ana ekranda toplam varlık/borç değeri, ödenen, kalan ve **güncel taksit tutarı** (kalan tutar / kalan ay) otomatik
