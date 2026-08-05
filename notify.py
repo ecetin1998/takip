@@ -16,7 +16,7 @@ from email.mime.text import MIMEText
 
 import requests
 
-from data_store import get_payments, get_settings, toplam_odenen
+from data_store import get_payments, get_settings, odenen_by_kalem
 from hesaplama import fetch_gumus_fiyat, fetch_phe_fiyat, hesapla_faiz_borcu
 
 
@@ -40,7 +40,18 @@ def build_message() -> str:
         date.fromisoformat(s["faiz_baslangic"]),
     )
     toplam = gumus_deger + phe_deger + faiz_borc
-    odenen = toplam_odenen()
+
+    odenen_map = odenen_by_kalem()
+    odenen_gumus = odenen_map.get("Gümüş", 0.0)
+    odenen_phe = odenen_map.get("PHE Fon", 0.0)
+    odenen_faiz = odenen_map.get("Faiz Borcu", 0.0)
+    odenen_genel = odenen_map.get("Genel", 0.0)
+
+    kalan_gumus = max(gumus_deger - odenen_gumus, 0)
+    kalan_phe = max(phe_deger - odenen_phe, 0)
+    kalan_faiz = max(faiz_borc - odenen_faiz, 0)
+
+    odenen = odenen_gumus + odenen_phe + odenen_faiz + odenen_genel
     kalan = max(toplam - odenen, 0)
 
     odeme_sayisi = len(get_payments())
@@ -53,9 +64,9 @@ def build_message() -> str:
 
     return (
         "💰 Borç/Varlık Takip — Günlük Durum\n\n"
-        f"🪙 Gümüş: {gumus_deger:,.0f} TL\n"
-        f"📈 PHE Fon: {phe_deger:,.0f} TL\n"
-        f"🏦 Faiz Borcu: {faiz_borc:,.0f} TL\n"
+        f"🪙 Gümüş: {gumus_deger:,.0f} TL (kalan: {kalan_gumus:,.0f} TL)\n"
+        f"📈 PHE Fon: {phe_deger:,.0f} TL (kalan: {kalan_phe:,.0f} TL)\n"
+        f"🏦 Faiz Borcu: {faiz_borc:,.0f} TL (kalan: {kalan_faiz:,.0f} TL)\n"
         "—\n"
         f"Toplam: {toplam:,.0f} TL\n"
         f"Ödenen: {odenen:,.0f} TL\n"

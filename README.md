@@ -86,6 +86,13 @@ Bunu sol panelden bir kere gir, gerisi otomatik güncellenir.
 - Ödeme yaptıkça toplam kalan (gümüş + PHE + işleyen faiz borcu - ödenen) küçülüyor, güncel taksit ona göre
   yeniden hesaplanıyor.
 
+## Ödemeler artık kalem bazlı
+
+Ödeme girerken **hangi kalem için** (Gümüş / PHE Fon / Faiz Borcu) ödediğini seçiyorsun. Her kalemin kendi
+"ödenen" ve "kalan" takibi var — yani gümüşe yaptığın ödeme sadece gümüşün kalanını düşürüyor, PHE'ye
+yaptığın ödeme sadece PHE'nin kalanını düşürüyor, faize yaptığın da faiz borcunun kalanını. Ana ekranda
+"📉 Kalem Bazlı Kalan" bölümünde üçünü ayrı ayrı görüyorsun, toplam/kalan/güncel taksit hâlâ genel toplama göre.
+
 ## Kullanım
 
 - Sol panelde gümüş gram sayısı, PHE pay adedi, faiz ayarları ve taksit sayısı ayarlanıyor — fiyatlar otomatik geliyor.

@@ -5,10 +5,10 @@
     "phe_adet": 8888,
     "phe_fiyat": 0,
     "faiz_anapara": 45000,
-    "faiz_orani": 4.55, 
+    "faiz_orani": 4.55,
     "faiz_periyot": "Aylık",
     "faiz_tip": "Bileşik",
-    "faiz_baslangic": "2026-07-24",
+    "faiz_baslangic": "2026-08-05",
     "taksit_sayisi": 5
   },
   "payments": [],

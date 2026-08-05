@@ -3,10 +3,12 @@ from datetime import date
 import streamlit as st
 
 from data_store import (
+    KALEMLER,
     add_payment,
     delete_payment,
     get_payments,
     get_settings,
+    odenen_by_kalem,
     toplam_odenen,
     update_payment,
     update_settings,
@@ -125,7 +127,18 @@ with st.sidebar:
 gumus_deger = gumus_gram * gumus_fiyat
 phe_deger = phe_adet * phe_fiyat
 toplam = gumus_deger + phe_deger + faiz_borc
-odenen = toplam_odenen()
+
+odenen_map = odenen_by_kalem()
+odenen_gumus = odenen_map.get("Gümüş", 0.0)
+odenen_phe = odenen_map.get("PHE Fon", 0.0)
+odenen_faiz = odenen_map.get("Faiz Borcu", 0.0)
+odenen_genel = odenen_map.get("Genel", 0.0)  # eski, kalemsiz kayıtlar (geriye dönük uyum)
+
+kalan_gumus = max(gumus_deger - odenen_gumus, 0)
+kalan_phe = max(phe_deger - odenen_phe, 0)
+kalan_faiz = max(faiz_borc - odenen_faiz, 0)
+
+odenen = odenen_gumus + odenen_phe + odenen_faiz + odenen_genel
 kalan = max(toplam - odenen, 0)
 
 odeme_sayisi = len(get_payments())
@@ -137,6 +150,12 @@ col1, col2, col3 = st.columns(3)
 col1.metric("🪙 Gümüş", f"{gumus_deger:,.0f} TL", help=f"{gumus_gram:g} gram x {gumus_fiyat:,.2f} TL")
 col2.metric("📈 PHE Fon", f"{phe_deger:,.0f} TL", help=f"{phe_adet:g} pay x {phe_fiyat:,.6f} TL")
 col3.metric("🏦 Faiz Borcu", f"{faiz_borc:,.0f} TL", help=f"Anapara {faiz_anapara:,.0f} TL + işleyen faiz")
+
+st.subheader("📉 Kalem Bazlı Kalan")
+kc1, kc2, kc3 = st.columns(3)
+kc1.metric("🪙 Gümüş Kalan", f"{kalan_gumus:,.0f} TL", help=f"Ödenen: {odenen_gumus:,.0f} TL")
+kc2.metric("📈 PHE Kalan", f"{kalan_phe:,.0f} TL", help=f"Ödenen: {odenen_phe:,.0f} TL")
+kc3.metric("🏦 Faiz Kalan", f"{kalan_faiz:,.0f} TL", help=f"Ödenen: {odenen_faiz:,.0f} TL")
 
 st.divider()
 
@@ -154,15 +173,16 @@ st.divider()
 
 st.subheader("➕ Ödeme Gir")
 with st.form("odeme_form", clear_on_submit=True):
+    kalem = st.selectbox("Hangi kalem için ödedin?", KALEMLER)
     c1, c2 = st.columns(2)
-    tarih = c1.date_input("Tarih", value=date.today())
-    tutar = c2.number_input("Tutar (TL)", min_value=0.0, step=100.0)
+    tutar = c1.number_input("Ne kadar ödedin? (TL)", min_value=0.0, step=100.0)
+    tarih = c2.date_input("Tarih", value=date.today())
     not_ = st.text_input("Not (opsiyonel)")
     submitted = st.form_submit_button("Ödemeyi Kaydet", use_container_width=True)
     if submitted:
         if tutar > 0:
-            add_payment(tarih, tutar, not_)
-            kaydet_ve_senkronla(f"{tutar:,.0f} TL kaydedildi.")
+            add_payment(tarih, tutar, kalem, not_)
+            kaydet_ve_senkronla(f"{kalem} için {tutar:,.0f} TL kaydedildi.")
             st.rerun()
         else:
             st.warning("Tutar 0'dan büyük olmalı hacı.")
@@ -174,19 +194,21 @@ if rows:
         st.session_state.duzenlenen_id = None
 
     for p in rows:
-        pid, tarih_str, tutar_val, not_val = p["id"], p["tarih"], p["tutar"], p["not_"]
+        pid, tarih_str, tutar_val, kalem_val, not_val = p["id"], p["tarih"], p["tutar"], p.get("kalem", "Genel"), p["not_"]
         if st.session_state.duzenlenen_id == pid:
             with st.form(f"duzenle_form_{pid}"):
                 st.caption(f"Ödeme #{pid} düzenleniyor")
+                secenekler = KALEMLER if kalem_val in KALEMLER else KALEMLER + [kalem_val]
+                yeni_kalem = st.selectbox("Kalem", secenekler, index=secenekler.index(kalem_val), key=f"kalem_{pid}")
                 c1, c2 = st.columns(2)
-                yeni_tarih = c1.date_input("Tarih", value=date.fromisoformat(tarih_str), key=f"tarih_{pid}")
-                yeni_tutar = c2.number_input("Tutar (TL)", value=float(tutar_val), min_value=0.0, step=100.0, key=f"tutar_{pid}")
+                yeni_tutar = c1.number_input("Tutar (TL)", value=float(tutar_val), min_value=0.0, step=100.0, key=f"tutar_{pid}")
+                yeni_tarih = c2.date_input("Tarih", value=date.fromisoformat(tarih_str), key=f"tarih_{pid}")
                 yeni_not = st.text_input("Not", value=not_val or "", key=f"not_{pid}")
                 bc1, bc2 = st.columns(2)
                 kaydet = bc1.form_submit_button("💾 Kaydet", use_container_width=True)
                 vazgec = bc2.form_submit_button("Vazgeç", use_container_width=True)
                 if kaydet:
-                    update_payment(pid, yeni_tarih, yeni_tutar, yeni_not)
+                    update_payment(pid, yeni_tarih, yeni_tutar, yeni_kalem, yeni_not)
                     st.session_state.duzenlenen_id = None
                     kaydet_ve_senkronla("Güncellendi.")
                     st.rerun()
@@ -194,14 +216,15 @@ if rows:
                     st.session_state.duzenlenen_id = None
                     st.rerun()
         else:
-            c1, c2, c3, c4, c5 = st.columns([2, 2, 4, 1, 1])
+            c1, c2, c3, c4, c5, c6 = st.columns([2, 2, 2, 3, 1, 1])
             c1.write(tarih_str)
             c2.write(f"{tutar_val:,.0f} TL")
-            c3.write(not_val or "—")
-            if c4.button("✏️", key=f"edit_{pid}"):
+            c3.write(kalem_val)
+            c4.write(not_val or "—")
+            if c5.button("✏️", key=f"edit_{pid}"):
                 st.session_state.duzenlenen_id = pid
                 st.rerun()
-            if c5.button("🗑️", key=f"del_{pid}"):
+            if c6.button("🗑️", key=f"del_{pid}"):
                 delete_payment(pid)
                 commit_and_push("Ödeme silindi")
                 st.rerun()
